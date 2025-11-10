@@ -1,7 +1,7 @@
 import qrcode from "qrcode-generator";
 import { IInputs, IOutputs } from "./generated/ManifestTypes";
 
-export class SampleControl implements ComponentFramework.StandardControl<IInputs, IOutputs> {
+export class QRCodeCreater implements ComponentFramework.StandardControl<IInputs, IOutputs> {
     private static readonly defaultSize = 128;
     private static readonly minSize = 48;
     private static readonly containerPadding = 5;
@@ -28,7 +28,7 @@ export class SampleControl implements ComponentFramework.StandardControl<IInputs
         this.hostContainer.style.justifyContent = "center";
         this.hostContainer.style.width = "100%";
         this.hostContainer.style.height = "100%";
-        this.hostContainer.style.padding = `${SampleControl.containerPadding}px`;
+        this.hostContainer.style.padding = `${QRCodeCreater.containerPadding}px`;
         this.hostContainer.style.boxSizing = "border-box";
         this.hostContainer.style.rowGap = "4px";
         this.hostContainer.style.textAlign = "center";
@@ -41,7 +41,7 @@ export class SampleControl implements ComponentFramework.StandardControl<IInputs
         this.qrWrapper.style.margin = "0";
 
         this.messageElement = document.createElement("div");
-        this.messageElement.textContent = SampleControl.placeholderText;
+        this.messageElement.textContent = QRCodeCreater.placeholderText;
         this.messageElement.style.fontFamily = "Segoe UI, sans-serif";
         this.messageElement.style.fontSize = "12px";
         this.messageElement.style.color = "#605e5c";
@@ -66,7 +66,7 @@ export class SampleControl implements ComponentFramework.StandardControl<IInputs
         const qrSize = this.calculateQrSize(context);
 
         if (!trimmedValue) {
-            this.showMessage(SampleControl.placeholderText);
+            this.showMessage(QRCodeCreater.placeholderText);
             this.currentValue = null;
             this.currentSize = null;
             return;
@@ -162,10 +162,10 @@ export class SampleControl implements ComponentFramework.StandardControl<IInputs
                 ? context.mode.allocatedHeight
                 : 0;
 
-        const width = widthFromDom > 0 ? widthFromDom : widthFromContext > 0 ? widthFromContext : SampleControl.defaultSize;
-        const height = heightFromDom > 0 ? heightFromDom : heightFromContext > 0 ? heightFromContext : SampleControl.defaultSize;
+        const width = widthFromDom > 0 ? widthFromDom : widthFromContext > 0 ? widthFromContext : QRCodeCreater.defaultSize;
+        const height = heightFromDom > 0 ? heightFromDom : heightFromContext > 0 ? heightFromContext : QRCodeCreater.defaultSize;
 
-        const usable = Math.min(width, height) - SampleControl.containerPadding * 2;
-        return Math.max(SampleControl.minSize, usable > 0 ? Math.floor(usable) : SampleControl.minSize);
+        const usable = Math.min(width, height) - QRCodeCreater.containerPadding * 2;
+        return Math.max(QRCodeCreater.minSize, usable > 0 ? Math.floor(usable) : QRCodeCreater.minSize);
     }
 }
