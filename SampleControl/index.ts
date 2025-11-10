@@ -1,20 +1,19 @@
+import qrcode from "qrcode-generator";
 import { IInputs, IOutputs } from "./generated/ManifestTypes";
 
 export class SampleControl implements ComponentFramework.StandardControl<IInputs, IOutputs> {
-    /**
-     * Empty constructor.
-     */
-    constructor() {
-        // Empty
-    }
+    private static readonly defaultSize = 128;
+    private static readonly minSize = 48;
+    private static readonly containerPadding = 5;
+    private static readonly placeholderText = "QRCODE";
+    private hostContainer: HTMLDivElement | undefined;
+    private qrWrapper: HTMLDivElement | undefined;
+    private messageElement: HTMLDivElement | undefined;
+    private currentValue: string | null = null;
+    private currentSize: number | null = null;
 
     /**
-     * Used to initialize the control instance. Controls can kick off remote server calls and other initialization actions here.
-     * Data-set values are not initialized here, use updateView.
-     * @param context The entire property bag available to control via Context Object; It contains values as set up by the customizer mapped to property names defined in the manifest, as well as utility functions.
-     * @param notifyOutputChanged A callback method to alert the framework that the control has new outputs ready to be retrieved asynchronously.
-     * @param state A piece of data that persists in one session for a single user. Can be set at any point in a controls life cycle by calling 'setControlState' in the Mode interface.
-     * @param container If a control is marked control-type='standard', it will receive an empty div element within which it can render its content.
+     * Create the static DOM scaffolding that we reuse for every update.
      */
     public init(
         context: ComponentFramework.Context<IInputs>,
@@ -22,31 +21,151 @@ export class SampleControl implements ComponentFramework.StandardControl<IInputs
         state: ComponentFramework.Dictionary,
         container: HTMLDivElement
     ): void {
-        // Add control initialization code
+        this.hostContainer = container;
+        this.hostContainer.style.display = "flex";
+        this.hostContainer.style.flexDirection = "column";
+        this.hostContainer.style.alignItems = "center";
+        this.hostContainer.style.justifyContent = "center";
+        this.hostContainer.style.width = "100%";
+        this.hostContainer.style.height = "100%";
+        this.hostContainer.style.padding = `${SampleControl.containerPadding}px`;
+        this.hostContainer.style.boxSizing = "border-box";
+        this.hostContainer.style.rowGap = "4px";
+        this.hostContainer.style.textAlign = "center";
+
+        this.qrWrapper = document.createElement("div");
+        this.qrWrapper.style.backgroundColor = "#ffffff";
+        this.qrWrapper.style.border = "1px solid #e1e1e1";
+        this.qrWrapper.style.display = "none";
+        this.qrWrapper.setAttribute("role", "img");
+        this.qrWrapper.style.margin = "0";
+
+        this.messageElement = document.createElement("div");
+        this.messageElement.textContent = SampleControl.placeholderText;
+        this.messageElement.style.fontFamily = "Segoe UI, sans-serif";
+        this.messageElement.style.fontSize = "12px";
+        this.messageElement.style.color = "#605e5c";
+        this.messageElement.style.textAlign = "center";
+        this.messageElement.style.margin = "0";
+
+        container.appendChild(this.qrWrapper);
+        container.appendChild(this.messageElement);
     }
 
-
     /**
-     * Called when any value in the property bag has changed. This includes field values, data-sets, global values such as container height and width, offline status, control metadata values such as label, visible, etc.
-     * @param context The entire property bag available to control via Context Object; It contains values as set up by the customizer mapped to names defined in the manifest, as well as utility functions
+     * Re-render the QR code or placeholder whenever the bound value changes.
      */
     public updateView(context: ComponentFramework.Context<IInputs>): void {
-        // Add code to update control view
+        if (!this.qrWrapper || !this.messageElement || !this.hostContainer) {
+            return;
+        }
+
+        const rawValue = context.parameters.qrText?.raw ?? "";
+        const trimmedValue = rawValue.trim();
+
+        const qrSize = this.calculateQrSize(context);
+
+        if (!trimmedValue) {
+            this.showMessage(SampleControl.placeholderText);
+            this.currentValue = null;
+            this.currentSize = null;
+            return;
+        }
+
+        if (this.currentValue === rawValue && this.currentSize === qrSize) {
+            return;
+        }
+
+        try {
+            const qrInstance = qrcode(0, "M");
+            qrInstance.addData(rawValue);
+            qrInstance.make();
+
+            this.qrWrapper.innerHTML = qrInstance.createSvgTag(2, 0);
+
+            const svgElement = this.qrWrapper.querySelector("svg");
+            if (svgElement) {
+                svgElement.setAttribute("width", `${qrSize}`);
+                svgElement.setAttribute("height", `${qrSize}`);
+            }
+
+            this.qrWrapper.style.width = `${qrSize}px`;
+            this.qrWrapper.style.height = `${qrSize}px`;
+            this.qrWrapper.style.display = "inline-block";
+            this.qrWrapper.title = rawValue;
+            this.hostContainer.title = rawValue;
+            this.hostContainer.setAttribute("aria-label", `QR code for ${rawValue}`);
+
+            this.messageElement.style.display = "none";
+            this.qrWrapper.style.visibility = "visible";
+            this.currentValue = rawValue;
+            this.currentSize = qrSize;
+        } catch (error) {
+            this.showMessage("QR generation error");
+            this.currentValue = null;
+            this.currentSize = null;
+        }
     }
 
-    /**
-     * It is called by the framework prior to a control receiving new data.
-     * @returns an object based on nomenclature defined in manifest, expecting object[s] for property marked as "bound" or "output"
-     */
     public getOutputs(): IOutputs {
         return {};
     }
 
     /**
-     * Called when the control is to be removed from the DOM tree. Controls should use this call for cleanup.
-     * i.e. cancelling any pending remote calls, removing listeners, etc.
+     * Remove any DOM references created during init.
      */
     public destroy(): void {
-        // Add code to cleanup control if necessary
+        if (!this.hostContainer) {
+            return;
+        }
+
+        while (this.hostContainer.firstChild) {
+            this.hostContainer.removeChild(this.hostContainer.firstChild);
+        }
+
+        this.hostContainer.removeAttribute("aria-label");
+        this.hostContainer = undefined;
+        this.qrWrapper = undefined;
+        this.messageElement = undefined;
+        this.currentValue = null;
+        this.currentSize = null;
+    }
+
+    private showMessage(message: string): void {
+        if (!this.qrWrapper || !this.messageElement) {
+            return;
+        }
+
+        this.qrWrapper.style.display = "none";
+        this.qrWrapper.innerHTML = "";
+        this.qrWrapper.removeAttribute("title");
+
+        this.messageElement.textContent = message;
+        this.messageElement.style.display = "block";
+
+        if (this.hostContainer) {
+            this.hostContainer.removeAttribute("title");
+            this.hostContainer.removeAttribute("aria-label");
+        }
+    }
+
+    private calculateQrSize(context: ComponentFramework.Context<IInputs>): number {
+        const widthFromDom = this.hostContainer?.clientWidth ?? 0;
+        const heightFromDom = this.hostContainer?.clientHeight ?? 0;
+
+        const widthFromContext =
+            typeof context.mode.allocatedWidth === "number" && context.mode.allocatedWidth > 0
+                ? context.mode.allocatedWidth
+                : 0;
+        const heightFromContext =
+            typeof context.mode.allocatedHeight === "number" && context.mode.allocatedHeight > 0
+                ? context.mode.allocatedHeight
+                : 0;
+
+        const width = widthFromDom > 0 ? widthFromDom : widthFromContext > 0 ? widthFromContext : SampleControl.defaultSize;
+        const height = heightFromDom > 0 ? heightFromDom : heightFromContext > 0 ? heightFromContext : SampleControl.defaultSize;
+
+        const usable = Math.min(width, height) - SampleControl.containerPadding * 2;
+        return Math.max(SampleControl.minSize, usable > 0 ? Math.floor(usable) : SampleControl.minSize);
     }
 }
