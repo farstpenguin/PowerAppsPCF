@@ -78,7 +78,8 @@ export class QRCodeCreater implements ComponentFramework.StandardControl<IInputs
 
         try {
             const qrInstance = qrcode(0, "M");
-            qrInstance.addData(rawValue);
+            // UTF-8エンコーディングで日本語文字を正しく処理
+            qrInstance.addData(rawValue, "Byte");
             qrInstance.make();
 
             this.qrWrapper.innerHTML = qrInstance.createSvgTag(2, 0);
